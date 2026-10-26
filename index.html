@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#070c16">
+  <meta name="format-detection" content="telephone=no">
+  <meta name="description" content="WhiteNoise 白噪音专注助手：白噪音、雨声、海浪声，支持播放暂停、音量调节、15 / 30 / 60 分钟定时关闭，以及本地音频上传。">
+  <title>White Noise · 白噪音专注助手</title>
+  <link rel="icon" href="images/icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <svg class="icon-sprite" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false">
+    <symbol id="icon-white" viewBox="0 0 24 24">
+      <g fill="none" stroke="currentColor" stroke-linecap="round">
+        <path d="M5.5 10.2v3.6"/>
+        <path d="M9 7.2v9.6"/>
+        <path d="M12.5 4.6v14.8"/>
+        <path d="M16 8.4v7.2"/>
+        <path d="M19.5 10.8v2.4"/>
+      </g>
+    </symbol>
+    <symbol id="icon-rain" viewBox="0 0 24 24">
+      <g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M7 15h9.8a3.1 3.1 0 0 0 .2-6.2 4.6 4.6 0 0 0-8.8-1.1A3.3 3.3 0 0 0 7 15Z"/>
+        <path d="M9 17.2 8.2 19.4"/>
+        <path d="M12.4 17.2 11.6 19.4"/>
+        <path d="M15.8 17.2 15 19.4"/>
+      </g>
+    </symbol>
+    <symbol id="icon-ocean" viewBox="0 0 24 24">
+      <g fill="none" stroke="currentColor" stroke-linecap="round">
+        <path d="M3.5 8.6c1.9-2.2 3.8-2.2 5.7 0s3.8 2.2 5.7 0 3.4-1.8 5.6-.2"/>
+        <path d="M3.5 13.4c1.9-2.2 3.8-2.2 5.7 0s3.8 2.2 5.7 0 3.4-1.8 5.6-.2"/>
+        <path d="M3.5 18.2c1.9-2.2 3.8-2.2 5.7 0s3.8 2.2 5.7 0 3.4-1.8 5.6-.2"/>
+      </g>
+    </symbol>
+    <symbol id="icon-custom" viewBox="0 0 24 24">
+      <g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M9 17.5V6.8l9-1.8v10.7"/>
+        <circle cx="6.8" cy="17.5" r="2.2"/>
+        <circle cx="15.8" cy="15.7" r="2.2"/>
+      </g>
+    </symbol>
+  </svg>
+
+  <!-- 纯 CSS 背景光晕，不参与无障碍与交互 -->
+  <div class="bg" aria-hidden="true">
+    <span class="bg-orb bg-orb-a"></span>
+    <span class="bg-orb bg-orb-b"></span>
+    <canvas class="bg-canvas"></canvas>
+  </div>
+
+  <noscript>
+    <div class="noscript">WhiteNoise 需要开启 JavaScript 才能播放声音。</div>
+  </noscript>
+
+  <main id="app" class="app" v-cloak>
+    <!-- 1. 标题区域 -->
+    <header class="hero">
+      <h1 class="hero-title">White Noise</h1>
+      <p class="hero-sub">专注一下</p>
+    </header>
+
+    <!-- 2. 当前声音显示区域 -->
+    <section class="now" :class="{ playing: isPlaying }" aria-labelledby="now-title">
+      <div class="now-orb" aria-hidden="true">
+        <svg class="now-icon" viewBox="0 0 24 24">
+          <use :href="'#icon-' + currentSound"></use>
+        </svg>
+      </div>
+      <h2 id="now-title" class="now-name" :title="currentSoundMeta.name">{{ currentSoundMeta.name }}</h2>
+      <p class="now-state">
+        <span class="state-dot" aria-hidden="true"></span>
+        {{ isPlaying ? '播放中' : '已暂停' }}
+      </p>
+    </section>
+
+    <p v-if="errorMsg" class="alert" role="alert">{{ errorMsg }}</p>
+
+    <!-- 3. 播放 / 暂停按钮 -->
+    <button class="play-btn" type="button" @click="togglePlay">
+      <svg v-if="!isPlaying" class="play-icon" viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M8.4 5.1a1.2 1.2 0 0 1 1.83-1.02l9.1 6.9a1.2 1.2 0 0 1 0 2.04l-9.1 6.9A1.2 1.2 0 0 1 8.4 18.9V5.1Z" fill="currentColor"/>
+      </svg>
+      <svg v-else class="play-icon" viewBox="0 0 24 24" aria-hidden="true">
+        <rect x="6.2" y="5" width="4.1" height="14" rx="1.4" fill="currentColor"/>
+        <rect x="13.7" y="5" width="4.1" height="14" rx="1.4" fill="currentColor"/>
+      </svg>
+      <span>{{ isPlaying ? '暂停' : '播放' }}</span>
+    </button>
+
+    <!-- 4. 音量控制区域 -->
+    <section class="panel" aria-labelledby="volume-title">
+      <div class="panel-head">
+        <h2 class="panel-title" id="volume-title">音量</h2>
+      </div>
+      <div class="volume-row">
+        <svg class="vol-icon" viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M4.5 9.2h3.2l4-3.1v11.8l-4-3.1H4.5a1 1 0 0 1-1-1v-3.6a1 1 0 0 1 1-1Z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/>
+          <path d="M15 9.8a3.3 3.3 0 0 1 0 4.4" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+        </svg>
+        <input
+          class="range"
+          type="range"
+          min="0"
+          max="100"
+          step="1"
+          :value="volume"
+          :style="{ '--volume': volume + '%' }"
+          :aria-valuetext="volume + '%'"
+          aria-label="音量"
+          @input="onVolumeInput"
+          @change="savePrefs"
+        >
+        <svg class="vol-icon" viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M4.5 9.2h3.2l4-3.1v11.8l-4-3.1H4.5a1 1 0 0 1-1-1v-3.6a1 1 0 0 1 1-1Z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/>
+          <path d="M14.8 9.6a3.6 3.6 0 0 1 0 4.8M17.4 7.2a7.2 7.2 0 0 1 0 9.6" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+        </svg>
+      </div>
+    </section>
+
+    <!-- 5. 环境声音选择区域 -->
+    <section class="panel" aria-labelledby="sounds-title">
+      <div class="panel-head">
+        <h2 class="panel-title" id="sounds-title">环境声音</h2>
+        <button
+          class="upload-btn"
+          type="button"
+          @click="pickFile"
+          :aria-label="customReady ? '更换自定义音频' : '上传自定义音频'"
+          :title="customReady && customFileName ? customFileName : '上传本地音频'"
+        >
+          <svg class="upload-icon" viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M12 16V4m0 0L7.5 8.5M12 4l4.5 4.5" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M4 15v3.5A1.5 1.5 0 0 0 5.5 20h13a1.5 1.5 0 0 0 1.5-1.5V15" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+          </svg>
+          <span>{{ customReady ? '更换' : '上传' }}</span>
+        </button>
+      </div>
+      <div class="sound-grid" role="radiogroup" aria-labelledby="sounds-title">
+        <button
+          v-for="sound in sounds"
+          :key="sound.id"
+          class="sound-card"
+          :class="{ active: currentSound === sound.id }"
+          type="button"
+          role="radio"
+          :aria-checked="currentSound === sound.id"
+          :disabled="sound.id === 'custom' && !customReady"
+          :title="sound.id === 'custom' && customFileName ? customFileName : null"
+          @click="selectSound(sound.id)"
+        >
+          <span class="sound-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24"><use :href="'#icon-' + sound.id"></use></svg>
+          </span>
+          <span class="sound-label">{{ sound.name }}</span>
+        </button>
+      </div>
+      <input ref="fileInput" class="file-input" type="file" accept="audio/*" tabindex="-1" aria-hidden="true" @change="onFileChange">
+    </section>
+
+    <!-- 6. 定时关闭区域 -->
+    <section class="panel" aria-labelledby="timer-title">
+      <div class="panel-head">
+        <h2 class="panel-title" id="timer-title">定时关闭</h2>
+        <div class="countdown" :class="{ running: timerRunning }">
+          <svg class="clock-icon" viewBox="0 0 24 24" aria-hidden="true">
+            <circle cx="12" cy="12" r="8.4" fill="none" stroke="currentColor" stroke-width="1.7"/>
+            <path d="M12 7.8V12l2.8 1.7" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          <span class="sr-only">剩余时间</span>
+          <span class="countdown-value">{{ formattedTimer }}</span>
+        </div>
+      </div>
+      <div class="timer-grid" role="group" aria-labelledby="timer-title">
+        <button
+          v-for="preset in presets"
+          :key="preset"
+          class="timer-btn"
+          :class="{ active: timerPreset === preset && timer > 0 }"
+          type="button"
+          :aria-pressed="timerPreset === preset && timer > 0"
+          @click="startTimer(preset)"
+        >
+          <span class="timer-num">{{ preset }}</span><span class="timer-unit">分钟</span>
+        </button>
+      </div>
+    </section>
+
+    <audio ref="audio" loop preload="auto"></audio>
+    <audio ref="customAudio" loop preload="auto"></audio>
+
+    <p class="sr-only" role="status" aria-live="polite">{{ isPlaying ? '正在播放' : '已暂停' }}</p>
+  </main>
+
+  <dialog id="audio-error-dialog" class="modal" aria-labelledby="audio-error-title" aria-describedby="audio-error-message">
+    <h2 class="modal-title" id="audio-error-title">音频无法解析</h2>
+    <p class="modal-text" id="audio-error-message">这个文件可能不是有效的音频文件，或浏览器不支持它的格式。</p>
+    <form method="dialog" class="modal-actions">
+      <button class="modal-btn" value="ok">知道了</button>
+    </form>
+  </dialog>
+
+  <script src="lib/vue.global.prod.js"></script>
+  <script src="js/scene.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
