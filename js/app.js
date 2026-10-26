@@ -9,10 +9,10 @@
   'use strict';
 
   var SOUNDS = [
-    { id: 'white', name: '白噪音', file: 'audio/white.wav' },
-    { id: 'rain', name: '雨声', file: 'audio/rain.wav' },
-    { id: 'ocean', name: '海浪声', file: 'audio/ocean.wav' },
-    { id: 'custom', name: '自定义', file: '' }
+    { id: 'white', name: '白噪音' },
+    { id: 'rain', name: '雨声' },
+    { id: 'ocean', name: '海浪声' },
+    { id: 'custom', name: '自定义' }
   ];
 
   var TIMER_PRESETS = [15, 30, 60];
@@ -307,11 +307,17 @@
           if (!customAudio || !customUrl) return;
           audioEl = customAudio;
           customAudio.src = customUrl;
-        } else {
-          if (!mainAudio) return;
-          audioEl = mainAudio;
-          mainAudio.src = findSound(this.sounds, id).file;
+          this.applyOutputVolume();
+          return;
         }
+
+        if (!mainAudio) return;
+        audioEl = mainAudio;
+
+        // source 子节点由 Vue 根据 currentSound 更新，等 DOM 更新后再 load
+        this.$nextTick(function () {
+          if (mainAudio) mainAudio.load();
+        });
 
         this.applyOutputVolume();
       },
@@ -502,7 +508,8 @@
         }
 
         var name = this.currentSoundMeta ? this.currentSoundMeta.name : '当前声音';
-        this.errorMsg = '「' + name + '」加载失败，请确认 audio/' + this.currentSound + '.wav 存在。';
+        this.errorMsg = '「' + name + '」加载失败，请确认 audio/' + this.currentSound +
+          '.mp3 或 audio/' + this.currentSound + '.wav 存在。';
       },
 
       /* ------------------------------ 音量 ------------------------------ */

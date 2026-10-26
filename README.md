@@ -24,7 +24,7 @@ docs/
   report-assets/
 ```
 
-`audio/` 下为 20 秒 WAV 占位素材，可按同名替换为正式音频。
+`audio/` 下为 20 秒 WAV 占位素材。内置声音按文件名匹配，播放时优先请求 `audio/<id>.mp3`，失败后回退 `audio/<id>.wav`；本地 MP3 已加入 `.gitignore`，不会把大文件提交到仓库。
 
 ## 交互约定
 

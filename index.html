@@ -189,7 +189,18 @@
       </div>
     </section>
 
-    <audio ref="audio" loop preload="auto"></audio>
+    <audio ref="audio" loop preload="auto">
+      <source
+        v-if="currentSound !== 'custom'"
+        :src="'audio/' + currentSound + '.mp3'"
+        type="audio/mpeg"
+      >
+      <source
+        v-if="currentSound !== 'custom'"
+        :src="'audio/' + currentSound + '.wav'"
+        type="audio/wav"
+      >
+    </audio>
     <audio ref="customAudio" loop preload="auto"></audio>
 
     <p class="sr-only" role="status" aria-live="polite">{{ isPlaying ? '正在播放' : '已暂停' }}</p>
